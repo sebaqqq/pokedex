@@ -1,5 +1,44 @@
 import { NextResponse } from "next/server";
 
+interface PokemonType {
+  type: {
+    name: string;
+    url: string;
+  };
+}
+
+interface DamageRelations {
+  double_damage_from: { name: string }[];
+  double_damage_to: { name: string }[];
+}
+
+interface PokemonAPIResponse {
+  id: number;
+  name: string;
+  sprites: {
+    front_default: string;
+  };
+  types: PokemonType[];
+  species: {
+    url: string;
+  };
+}
+
+interface SpeciesData {
+  evolution_chain: {
+    url: string;
+  };
+}
+
+interface EvolutionChain {
+  chain: {
+    species: {
+      name: string;
+    };
+    evolves_to: EvolutionChain["chain"][];
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
@@ -12,18 +51,20 @@ export async function GET(request: Request) {
     const response = await fetch(
       `https://pokeapi.co/api/v2/pokemon/${query.toLowerCase()}`
     );
+
     if (!response.ok) {
       return NextResponse.json({ error: "Pokemon not found" }, { status: 404 });
     }
-    const pokemon = await response.json();
+
+    const pokemon: PokemonAPIResponse = await response.json();
 
     const speciesResponse = await fetch(pokemon.species.url);
-    const speciesData = await speciesResponse.json();
+    const speciesData: SpeciesData = await speciesResponse.json();
 
     const evolutionResponse = await fetch(speciesData.evolution_chain.url);
-    const evolutionData = await evolutionResponse.json();
+    const evolutionData: EvolutionChain = await evolutionResponse.json();
 
-    const evolutions = [];
+    const evolutions: string[] = [];
     let current = evolutionData.chain;
 
     do {
@@ -31,42 +72,31 @@ export async function GET(request: Request) {
       current = current.evolves_to[0] || null;
     } while (current);
 
+    const weaknessesSet = new Set<string>();
+    const strengthsSet = new Set<string>();
+
+    for (const t of pokemon.types) {
+      const res = await fetch(t.type.url);
+      const typeData: { damage_relations: DamageRelations } = await res.json();
+
+      typeData.damage_relations.double_damage_from.forEach((d) =>
+        weaknessesSet.add(d.name)
+      );
+      typeData.damage_relations.double_damage_to.forEach((d) =>
+        strengthsSet.add(d.name)
+      );
+    }
+
     return NextResponse.json({
       id: pokemon.id,
       name: pokemon.name,
       image: pokemon.sprites.front_default,
-      types: pokemon.types.map((t: any) => t.type.name),
-      weaknesses: Array.from(
-        new Set(
-          (
-            await Promise.all(
-              pokemon.types.map(async (t: any) => {
-                const res = await fetch(t.type.url);
-                return (
-                  await res.json()
-                ).damage_relations.double_damage_from.map((d: any) => d.name);
-              })
-            )
-          ).flat()
-        )
-      ),
-      strengths: Array.from(
-        new Set(
-          (
-            await Promise.all(
-              pokemon.types.map(async (t: any) => {
-                const res = await fetch(t.type.url);
-                return (await res.json()).damage_relations.double_damage_to.map(
-                  (d: any) => d.name
-                );
-              })
-            )
-          ).flat()
-        )
-      ),
+      types: pokemon.types.map((t) => t.type.name),
+      weaknesses: Array.from(weaknessesSet),
+      strengths: Array.from(strengthsSet),
       evolutions,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Error fetching data" }, { status: 500 });
   }
 }
