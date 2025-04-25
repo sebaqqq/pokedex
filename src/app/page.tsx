@@ -4,9 +4,19 @@ import { useState } from "react";
 import PokedexBackground from "./components/PokedexBackground";
 import Image from "next/image";
 
+interface PokemonData {
+  id: number;
+  name: string;
+  image: string;
+  types: string[];
+  weaknesses: string[];
+  strengths: string[];
+  evolutions: string[];
+}
+
 export default function Pokedex() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PokemonData | null>(null);
   const [error, setError] = useState("");
 
   const searchPokemon = async () => {
@@ -29,7 +39,7 @@ export default function Pokedex() {
 
   return (
     <PokedexBackground>
-      <div className="absolute top-80 left-1/2 transform -translate-x-1/2 -translate-y-1/2  py-60">
+      <div className="absolute top-80 left-1/2 transform -translate-x-1/2 -translate-y-1/2 py-60">
         <h1 className="text-4xl font-bold text-center mb-6 text-cyan-500">
           Pokédex
         </h1>
@@ -43,7 +53,7 @@ export default function Pokedex() {
           />
           <button
             onClick={searchPokemon}
-            className="w-full  bg-indigo-900 text-white py-2 rounded-xl hover:bg-indigo-700 transition duration-300 ease-in-out"
+            className="w-full bg-indigo-900 text-white py-2 rounded-xl hover:bg-indigo-700 transition duration-300 ease-in-out"
           >
             Buscar
           </button>
@@ -59,7 +69,6 @@ export default function Pokedex() {
                 height={192}
                 className="mx-auto mb-4"
               />
-
               <h2 className="text-xl mb-4 font-bold text-center text-white uppercase">
                 {result.name} (ID: {result.id})
               </h2>
@@ -70,7 +79,7 @@ export default function Pokedex() {
                 <strong className="font-semibold">Debilidades:</strong>{" "}
                 {result.weaknesses.join(", ").toUpperCase()}
               </p>
-              <p className="text-center mb-4 font-mono text-white bg-o">
+              <p className="text-center mb-4 font-mono text-white">
                 <strong className="font-semibold">Fortalezas:</strong>{" "}
                 {result.strengths.join(", ").toUpperCase()}
               </p>
